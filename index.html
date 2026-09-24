@@ -36,6 +36,7 @@
       line-height: 1.55;
       padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
     }
+    [hidden] { display: none !important; }
     header, main, footer { width: min(720px, 100% - 2rem); margin-inline: auto; }
     header {
       display: flex; align-items: baseline; justify-content: space-between;
@@ -46,11 +47,10 @@
     nav a:hover, nav a:focus-visible { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; }
     :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; letter-spacing: -0.03em; margin: 2.5rem 0 0.5rem; }
-    h2.section { font-size: 1.4rem; margin: 2.5rem 0 1rem; color: var(--brand); }
     .lede { color: var(--muted); max-width: 46ch; margin: 0 0 2rem; }
     #video-status { color: var(--muted); }
 
-    #video-grid { display: grid; gap: 1rem; }
+    #video-grid { display: grid; gap: 1rem; margin-top: 1.5rem; }
     .video-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
     .video-card video { display: block; width: 100%; height: auto; background: #000; }
     .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
@@ -66,18 +66,20 @@
   <header>
     <span class="logo">VTO Files</span>
     <nav aria-label="Main">
-      <a href="#content">Home</a>
-      <a href="#videos">Videos</a>
+      <a href="#/">Home</a>
+      <a href="#/videos">Videos</a>
       <a href="#about">About</a>
     </nav>
   </header>
 
   <main id="content">
-    <h1>Welcome to VTO Files</h1>
-    <p class="lede">No dull moments.</p>
+    <section id="page-home">
+      <h1>Welcome to VTO Files</h1>
+      <p class="lede">No dull moments.</p>
+    </section>
 
-    <section id="videos">
-      <h2 class="section">Videos</h2>
+    <section id="videos" hidden>
+      <h1>Videos</h1>
       <p id="video-status" role="status">Loading videos…</p>
       <div id="video-grid"></div>
     </section>
@@ -150,7 +152,26 @@
     }
   }
 
-  loadVideos();
+  // Simple hash router: #/ = Home, #/videos = Videos
+  const pageHome = document.getElementById("page-home");
+  const pageVideos = document.getElementById("videos");
+  let videosLoaded = false;
+
+  function route() {
+    if (location.hash === "#about") return; // footer anchor, keep current page
+    const onVideos = location.hash === "#/videos";
+    pageHome.hidden = onVideos;
+    pageVideos.hidden = !onVideos;
+    document.title = onVideos ? "Videos · Comedar" : "Comedar";
+    window.scrollTo(0, 0);
+    if (onVideos && !videosLoaded) {
+      videosLoaded = true;
+      loadVideos();
+    }
+  }
+
+  addEventListener("hashchange", route);
+  route();
   </script>
 </body>
 </html>
