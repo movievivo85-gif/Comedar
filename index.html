@@ -54,6 +54,7 @@
     #list p { margin: 0; color: var(--muted); }
     #status, #media-status { color: var(--muted); }
 
+    #featured[hidden] { display: none; }
     #featured video { display: block; width: 100%; height: auto; background: #000; border-radius: 8px; border: 1px solid var(--line); }
 
     #media-grid { display: grid; gap: 1rem; }
@@ -75,7 +76,6 @@
     <span class="logo">Comedar</span>
     <nav aria-label="Main">
       <a href="#content">Home</a>
-      <a href="#featured">Featured</a>
       <a href="#media">Media</a>
       <a href="#about">About</a>
     </nav>
@@ -85,13 +85,9 @@
     <h1>Welcome to Comedar</h1>
     <p class="lede">Your latest content, loaded live from Cosmic.</p>
 
-    <section id="featured">
+    <section id="featured" hidden>
       <h2 class="section">Featured video</h2>
-      <video
-        controls
-        playsinline
-        preload="metadata"
-        src="https://cdn.cosmicjs.com/9ea8c680-b7e9-11f1-a43a-a32884c478cc-lv_0_20260924055501.mp4">
+      <video id="featured-video" controls playsinline preload="metadata">
         Your browser doesn't support video playback.
       </video>
     </section>
@@ -125,6 +121,8 @@
   const list = document.getElementById("list");
   const mediaStatus = document.getElementById("media-status");
   const mediaGrid = document.getElementById("media-grid");
+  const featured = document.getElementById("featured");
+  const featuredVideo = document.getElementById("featured-video");
 
   const cosmic = createBucketClient({
     bucketSlug: BUCKET_SLUG,
@@ -157,6 +155,85 @@
         list.append(li);
       }
     } catch (err) {
-      status.textContent = "Couldn't load content. Check your bucket slug,
+      status.textContent = "Couldn't load content. Check your bucket slug, read key, and Object type.";
+      console.error(err);
+    }
+  }
 
-<html>
+  function renderMedia(m) {
+    const type = m.type || "";
+    const src = m.url;
+    const card = document.createElement("div");
+    card.className = "media-card";
+
+    let el;
+    if (type.startsWith("video/")) {
+      el = document.createElement("video");
+      el.controls = true;
+      el.preload = "metadata";
+      el.playsInline = true;
+      el.src = src;
+    } else if (type.startsWith("audio/")) {
+      el = document.createElement("audio");
+      el.controls = true;
+      el.preload = "metadata";
+      el.src = src;
+    } else if (type.startsWith("image/")) {
+      el = document.createElement("img");
+      el.loading = "lazy";
+      el.alt = m.original_name || m.name;
+      el.src = m.imgix_url ? m.imgix_url + "?w=1200&auto=format" : src;
+    } else {
+      el = document.createElement("div");
+      el.className = "caption";
+      const a = document.createElement("a");
+      a.href = src;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = "Open file";
+      el.append(a);
+    }
+
+    const cap = document.createElement("div");
+    cap.className = "caption";
+    cap.textContent = m.original_name || m.name;
+
+    card.append(el, cap);
+    return card;
+  }
+
+  async function loadMedia() {
+    try {
+      const { media } = await cosmic.media
+        .find()
+        .props("id,name,original_name,url,imgix_url,type")
+        .limit(50);
+
+      if (!media || !media.length) {
+        mediaStatus.textContent = "No media files yet. Upload one in Cosmic and reload.";
+        return;
+      }
+
+      // Use the first video in the library as the featured player
+      const firstVideo = media.find((m) => (m.type || "").startsWith("video/"));
+      if (firstVideo) {
+        featuredVideo.src = firstVideo.url;
+        featured.hidden = false;
+      }
+
+      mediaStatus.hidden = true;
+      for (const m of media) {
+        if (m === firstVideo) continue; // already shown in the featured player
+        mediaGrid.append(renderMedia(m));
+      }
+    } catch (err) {
+      mediaStatus.textContent = "Couldn't load media. Check that your read key has access to media.";
+      console.error(err);
+    }
+  }
+
+  loadObjects();
+  loadMedia();
+  </script>
+</body>
+</html>
