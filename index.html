@@ -86,8 +86,8 @@
 
     // Replace with the values from Cosmic > Project settings > API access.
     // Only the read key belongs in browser code. Never expose the write key here.
-    const BUCKET_SLUG = "comedar-line-production";
-    const READ_KEY = "WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
+    const BUCKET_SLUG = "YOUR_BUCKET_SLUG";
+    const READ_KEY = "YOUR_READ_KEY";
     const OBJECT_TYPE = "posts"; // change to your Object type slug
 
     document.getElementById("year").textContent = new Date().getFullYear();
@@ -100,10 +100,10 @@
         return;
       }
       try {
-        const cosmic = createBucketClient({ bucketSlug: comedar-line-production, readKey: WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af });
+        const cosmic = createBucketClient({ bucketSlug: BUCKET_SLUG, readKey: READ_KEY });
         const { objects } = await cosmic.objects
-          .find({ type: Videos })
-          .props("lv_0_20260924055501.mp4,title,slug,metadata")
+          .find({ type: OBJECT_TYPE })
+          .props("id,title,slug,metadata")
           .limit(20);
 
         if (!objects.length) {
