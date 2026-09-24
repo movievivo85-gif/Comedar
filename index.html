@@ -24,3 +24,108 @@
         --muted: #93a6a9;
         --brand: #7cc3d3;
         --line: #24373c;
+        --card: #13252a;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+    }
+    header, main, footer { width: min(720px, 100% - 2rem); margin-inline: auto; }
+    header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 1.5rem 0 1rem; border-bottom: 2px solid var(--brand);
+    }
+    .logo { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; color: var(--brand); }
+    nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; }
+    nav a:hover, nav a:focus-visible { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; letter-spacing: -0.03em; margin: 2.5rem 0 0.5rem; }
+    .lede { color: var(--muted); max-width: 46ch; margin: 0 0 2rem; }
+    #list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
+    #list li { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 6px; padding: 1rem 1.1rem; }
+    #list h2 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+    #list p { margin: 0; color: var(--muted); }
+    #status { color: var(--muted); }
+    footer { padding: 3rem 0 2rem; color: var(--muted); font-size: 0.9rem; }
+    @media (prefers-reduced-motion: no-preference) {
+      #list li { animation: in 0.3s ease-out both; }
+      @keyframes in { from { opacity: 0; } to { opacity: 1; } }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">Comedar</span>
+    <nav aria-label="Main">
+      <a href="#content">Home</a>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <main id="content">
+    <h1>Welcome to Comedar</h1>
+    <p class="lede">Your latest content, loaded live from Cosmic.</p>
+    <p id="status" role="status">Loading…</p>
+    <ul id="list"></ul>
+  </main>
+
+  <footer id="about">
+    <p>&copy; <span id="year"></span> Comedar</p>
+  </footer>
+
+  <!-- Cosmic Insights tracker: paste your tracker snippet from the Cosmic dashboard here -->
+
+  <script type="module">
+    import { createBucketClient } from "https://esm.sh/@cosmicjs/sdk";
+
+    // Replace with the values from Cosmic > Project settings > API access.
+    // Only the read key belongs in browser code. Never expose the write key here.
+    const BUCKET_SLUG = "comedar-line-production";
+    const READ_KEY = "WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
+    const OBJECT_TYPE = "posts"; // change to your Object type slug
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+    const status = document.getElementById("status");
+    const list = document.getElementById("list");
+
+    async function load() {
+      if (BUCKET_SLUG.startsWith("YOUR_")) {
+        status.textContent = "Add your bucket slug and read key in index.html to load content.";
+        return;
+      }
+      try {
+        const cosmic = createBucketClient({ bucketSlug: BUCKET_SLUG, readKey: READ_KEY });
+        const { objects } = await cosmic.objects
+          .find({ type: OBJECT_TYPE })
+          .props("id,title,slug,metadata")
+          .limit(20);
+
+        if (!objects.length) {
+          status.textContent = "No content yet. Add an object in Cosmic and reload.";
+          return;
+        }
+        status.hidden = true;
+        for (const o of objects) {
+          const li = document.createElement("li");
+          const h = document.createElement("h2");
+          h.textContent = o.title;
+          const p = document.createElement("p");
+          p.textContent = o.metadata?.description || o.slug;
+          li.append(h, p);
+          list.append(li);
+        }
+      } catch (err) {
+        status.textContent = "Couldn't load content. Check your bucket slug, read key, and Object type.";
+        console.error(err);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
