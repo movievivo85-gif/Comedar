@@ -48,25 +48,16 @@
     h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; letter-spacing: -0.03em; margin: 2.5rem 0 0.5rem; }
     h2.section { font-size: 1.4rem; margin: 2.5rem 0 1rem; color: var(--brand); }
     .lede { color: var(--muted); max-width: 46ch; margin: 0 0 2rem; }
-    #list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
-    #list li { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 6px; padding: 1rem 1.1rem; }
-    #list h2 { font-size: 1.1rem; margin: 0 0 0.25rem; }
-    #list p { margin: 0; color: var(--muted); }
-    #status, #media-status { color: var(--muted); }
+    #video-status { color: var(--muted); }
 
-    #featured[hidden] { display: none; }
-    #featured video { display: block; width: 100%; height: auto; background: #000; border-radius: 8px; border: 1px solid var(--line); }
-
-    #media-grid { display: grid; gap: 1rem; }
-    .media-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-    .media-card video, .media-card img { display: block; width: 100%; height: auto; background: #000; }
-    .media-card audio { display: block; width: 100%; padding: 0.75rem; }
-    .media-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
-    .media-card a { color: var(--brand); }
+    #video-grid { display: grid; gap: 1rem; }
+    .video-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .video-card video { display: block; width: 100%; height: auto; background: #000; }
+    .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
 
     footer { padding: 3rem 0 2rem; color: var(--muted); font-size: 0.9rem; }
     @media (prefers-reduced-motion: no-preference) {
-      #list li, .media-card { animation: in 0.3s ease-out both; }
+      .video-card { animation: in 0.3s ease-out both; }
       @keyframes in { from { opacity: 0; } to { opacity: 1; } }
     }
   </style>
@@ -76,7 +67,7 @@
     <span class="logo">Comedar</span>
     <nav aria-label="Main">
       <a href="#content">Home</a>
-      <a href="#media">Media</a>
+      <a href="#videos">Videos</a>
       <a href="#about">About</a>
     </nav>
   </header>
@@ -85,21 +76,10 @@
     <h1>Welcome to Comedar</h1>
     <p class="lede">Your latest content, loaded live from Cosmic.</p>
 
-    <section id="featured" hidden>
-      <h2 class="section">Featured video</h2>
-      <video id="featured-video" controls playsinline preload="metadata">
-        Your browser doesn't support video playback.
-      </video>
-    </section>
-
-    <h2 class="section">Latest</h2>
-    <p id="status" role="status">Loading…</p>
-    <ul id="list"></ul>
-
-    <section id="media">
-      <h2 class="section">Media</h2>
-      <p id="media-status" role="status">Loading media…</p>
-      <div id="media-grid"></div>
+    <section id="videos">
+      <h2 class="section">Videos</h2>
+      <p id="video-status" role="status">Loading videos…</p>
+      <div id="video-grid"></div>
     </section>
   </main>
 
@@ -114,85 +94,31 @@
 
   const BUCKET_SLUG = "comedar-line-production";
   const READ_KEY = "WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
-  const OBJECT_TYPE = "videos";
 
   document.getElementById("year").textContent = new Date().getFullYear();
-  const status = document.getElementById("status");
-  const list = document.getElementById("list");
-  const mediaStatus = document.getElementById("media-status");
-  const mediaGrid = document.getElementById("media-grid");
-  const featured = document.getElementById("featured");
-  const featuredVideo = document.getElementById("featured-video");
+  const videoStatus = document.getElementById("video-status");
+  const videoGrid = document.getElementById("video-grid");
 
   const cosmic = createBucketClient({
     bucketSlug: BUCKET_SLUG,
     readKey: READ_KEY
   });
 
-  async function loadObjects() {
-    try {
-      const { objects } = await cosmic.objects
-        .find({ type: OBJECT_TYPE })
-        .props("id,title,slug,metadata")
-        .limit(20);
+  const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i;
 
-      if (!objects.length) {
-        status.textContent = "No content yet. Add an object in Cosmic and reload.";
-        return;
-      }
-
-      status.hidden = true;
-
-      for (const o of objects) {
-        const li = document.createElement("li");
-        const h = document.createElement("h2");
-        h.textContent = o.title;
-
-        const p = document.createElement("p");
-        p.textContent = o.metadata?.description || o.slug;
-
-        li.append(h, p);
-        list.append(li);
-      }
-    } catch (err) {
-      status.textContent = "Couldn't load content. Check your bucket slug, read key, and Object type.";
-      console.error(err);
-    }
+  function isVideo(m) {
+    return (m.type || "").startsWith("video/") || VIDEO_EXT.test(m.url || "");
   }
 
-  function renderMedia(m) {
-    const type = m.type || "";
-    const src = m.url;
+  function renderVideo(m) {
     const card = document.createElement("div");
-    card.className = "media-card";
+    card.className = "video-card";
 
-    let el;
-    if (type.startsWith("video/")) {
-      el = document.createElement("video");
-      el.controls = true;
-      el.preload = "metadata";
-      el.playsInline = true;
-      el.src = src;
-    } else if (type.startsWith("audio/")) {
-      el = document.createElement("audio");
-      el.controls = true;
-      el.preload = "metadata";
-      el.src = src;
-    } else if (type.startsWith("image/")) {
-      el = document.createElement("img");
-      el.loading = "lazy";
-      el.alt = m.original_name || m.name;
-      el.src = m.imgix_url ? m.imgix_url + "?w=1200&auto=format" : src;
-    } else {
-      el = document.createElement("div");
-      el.className = "caption";
-      const a = document.createElement("a");
-      a.href = src;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = "Open file";
-      el.append(a);
-    }
+    const el = document.createElement("video");
+    el.controls = true;
+    el.preload = "metadata";
+    el.playsInline = true;
+    el.src = m.url;
 
     const cap = document.createElement("div");
     cap.className = "caption";
@@ -202,38 +128,29 @@
     return card;
   }
 
-  async function loadMedia() {
+  async function loadVideos() {
     try {
       const { media } = await cosmic.media
         .find()
-        .props("id,name,original_name,url,imgix_url,type")
-        .limit(50);
+        .props("id,name,original_name,url,type")
+        .limit(100);
 
-      if (!media || !media.length) {
-        mediaStatus.textContent = "No media files yet. Upload one in Cosmic and reload.";
+      const videos = (media || []).filter(isVideo);
+
+      if (!videos.length) {
+        videoStatus.textContent = "No videos yet. Upload one in Cosmic and reload.";
         return;
       }
 
-      // Use the first video in the library as the featured player
-      const firstVideo = media.find((m) => (m.type || "").startsWith("video/"));
-      if (firstVideo) {
-        featuredVideo.src = firstVideo.url;
-        featured.hidden = false;
-      }
-
-      mediaStatus.hidden = true;
-      for (const m of media) {
-        if (m === firstVideo) continue; // already shown in the featured player
-        mediaGrid.append(renderMedia(m));
-      }
+      videoStatus.hidden = true;
+      for (const v of videos) videoGrid.append(renderVideo(v));
     } catch (err) {
-      mediaStatus.textContent = "Couldn't load media. Check that your read key has access to media.";
+      videoStatus.textContent = "Couldn't load videos. Check that your read key has access to media.";
       console.error(err);
     }
   }
 
-  loadObjects();
-  loadMedia();
+  loadVideos();
   </script>
 </body>
 </html>
