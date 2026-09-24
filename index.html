@@ -82,13 +82,54 @@
   <!-- Cosmic Insights tracker: paste your tracker snippet from the Cosmic dashboard here -->
 
   <script type="module">
-    import { createBucketClient } from "https://app.cosmicjs.com/comedar-line-production/media?id=6ab4d1404717bc690f70bb22";
+  import { createBucketClient } from "https://app.cosmicjs.com/comedar-line-production/media?id=6ab4d1404717bc690f70bb22";
 
-    // Replace with the values from Cosmic > Project settings > API access.
-    // Only the read key belongs in browser code. Never expose the write key here.
-    const BUCKET_SLUG = "COSMIC_BUCKET_SLUG=comedar-line-production";
-    const READ_KEY = "COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
-    const OBJECT_TYPE = "videos"; // change to your Object type slug
+  const BUCKET_SLUG = "comedar-line-production";
+  const READ_KEY = "WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
+  const OBJECT_TYPE = "videos";
+
+  document.getElementById("year").textContent = new Date().getFullYear();
+  const status = document.getElementById("status");
+  const list = document.getElementById("list");
+
+  async function load() {
+    try {
+      const cosmic = createBucketClient({
+        bucketSlug: BUCKET_SLUG,
+        readKey: READ_KEY
+      });
+
+      const { objects } = await cosmic.objects
+        .find({ type: OBJECT_TYPE })
+        .props("id,title,slug,metadata")
+        .limit(20);
+
+      if (!objects.length) {
+        status.textContent = "No content yet. Add an object in Cosmic and reload.";
+        return;
+      }
+
+      status.hidden = true;
+
+      for (const o of objects) {
+        const li = document.createElement("li");
+        const h = document.createElement("h2");
+        h.textContent = o.title;
+
+        const p = document.createElement("p");
+        p.textContent = o.metadata?.description || o.slug;
+
+        li.append(h, p);
+        list.append(li);
+      }
+    } catch (err) {
+      status.textContent = "Couldn't load content. Check your bucket slug, read key, and Object type.";
+      console.error(err);
+    }
+  }
+
+  load();
+</script>
 
     document.getElementById("year").textContent = new Date().getFullYear();
     const status = document.getElementById("status");
