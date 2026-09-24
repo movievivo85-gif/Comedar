@@ -100,10 +100,10 @@
         return;
       }
       try {
-        const cosmic = createBucketClient({ bucketSlug: COSMIC_BUCKET_SLUG=comedar-line-production, readKey: COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af });
+        const cosmic = createBucketClient({ bucketSlug: comedar-line-production, readKey: WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af });
         const { objects } = await cosmic.objects
           .find({ type: Videos })
-          .props("id,title,slug,metadata")
+          .props("lv_0_20260924055501.mp4,title,slug,metadata")
           .limit(20);
 
         if (!objects.length) {
