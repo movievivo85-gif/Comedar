@@ -91,7 +91,7 @@
 
   </main>
 
-  <footer id="about">
+  <footer>
     <p>&copy; <span id="year"></span> Comedar</p>
   </footer>
 
@@ -165,7 +165,7 @@
 
   const onVideos = location.hash === "#/videos";
 
-    {pageHome.hidden = onVideos;
+    pageHome.hidden = onVideos;
     pageVideos.hidden = !onVideos;
     document.title = onVideos ? "Videos · Comedar" : "Comedar";
     window.scrollTo(0, 0);
@@ -173,10 +173,14 @@
       videosLoaded = true;
       loadVideos();
      }
-    }
-  const pageAbout = document.getElementById("about");
+    
+    function route() {
+    if (location.hash === "#about")
 
-  addEventListener("hashchange", route);
+    const pageAbout = document.getElementById("about");
+    }
+
+    addEventListener("hashchange", route);
   route();
   </script>
 </body>
