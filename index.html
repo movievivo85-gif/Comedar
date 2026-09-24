@@ -81,6 +81,12 @@
 
   <!-- Cosmic Insights tracker: paste your tracker snippet from the Cosmic dashboard here -->
 
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+
   <script type="module">
     import { createBucketClient } from "https://esm.sh/@cosmicjs/sdk";
 
