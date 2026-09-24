@@ -55,9 +55,30 @@
     .video-card video { display: block; width: 100%; height: auto; background: #000; }
     .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
 
+    /* Forum */
+    .forum h2 { font-size: 1.4rem; margin: 0 0 0.75rem; letter-spacing: -0.02em; }
+    #forum-form { display: grid; gap: 0.6rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+    #forum-form input, #forum-form textarea {
+      font: inherit; color: var(--ink); background: var(--bg);
+      border: 1px solid var(--line); border-radius: 6px; padding: 0.55rem 0.7rem; width: 100%;
+    }
+    #forum-form textarea { min-height: 5rem; resize: vertical; }
+    #forum-form button {
+      font: inherit; font-weight: 600; justify-self: start; cursor: pointer;
+      background: var(--brand); color: var(--bg); border: 0; border-radius: 6px; padding: 0.55rem 1.1rem;
+    }
+    #forum-form button:disabled { opacity: 0.6; cursor: wait; }
+    .hp { position: absolute; left: -9999px; }
+    #forum-status { color: var(--muted); font-size: 0.9rem; margin: 0.6rem 0; min-height: 1.3em; }
+    #forum-posts { display: grid; gap: 0.7rem; }
+    .post { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem 0.9rem; }
+    .post .meta { font-size: 0.85rem; color: var(--muted); }
+    .post .meta b { color: var(--brand); }
+    .post .msg { margin: 0.25rem 0 0; white-space: pre-wrap; word-break: break-word; }
+
     footer { padding: 3rem 0 2rem; color: var(--muted); font-size: 0.9rem; }
     @media (prefers-reduced-motion: no-preference) {
-      .video-card { animation: in 0.3s ease-out both; }
+      .video-card, .post { animation: in 0.3s ease-out both; }
       @keyframes in { from { opacity: 0; } to { opacity: 1; } }
     }
   </style>
@@ -76,6 +97,19 @@
     <section id="page-home">
       <h1>Welcome to VTO Files</h1>
       <p class="lede">No dull moments.</p>
+
+      <div class="forum">
+        <h2>Forum</h2>
+        <form id="forum-form" autocomplete="off">
+          <label for="f-name" class="hp">Leave empty</label>
+          <input class="hp" id="f-website" name="website" tabindex="-1" autocomplete="off">
+          <input id="f-name" name="name" placeholder="Your name" maxlength="30" required aria-label="Your name">
+          <textarea id="f-msg" name="message" placeholder="Say something…" maxlength="500" required aria-label="Message"></textarea>
+          <button type="submit" id="f-send">Post</button>
+        </form>
+        <p id="forum-status" role="status"></p>
+        <div id="forum-posts" aria-live="polite"></div>
+      </div>
     </section>
 
     <section id="videos" hidden>
@@ -101,6 +135,8 @@
 
   const BUCKET_SLUG = "comedar-line-production";
   const READ_KEY = "WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
+  const FORUM_ENDPOINT = "/api/forum-post"; // holds the write key server-side
+  const FORUM_TYPE = "forum-posts"; // Object type slug with text fields: author, message
 
   document.getElementById("year").textContent = new Date().getFullYear();
   const videoStatus = document.getElementById("video-status");
@@ -157,6 +193,96 @@
     }
   }
 
+  // ---- Forum ----
+  const forumForm = document.getElementById("forum-form");
+  const forumPosts = document.getElementById("forum-posts");
+  const forumStatus = document.getElementById("forum-status");
+  const sendBtn = document.getElementById("f-send");
+  const nameInput = document.getElementById("f-name");
+  const msgInput = document.getElementById("f-msg");
+  let lastPostAt = 0;
+
+  try { nameInput.value = localStorage.getItem("forum-name") || ""; } catch {}
+
+  function renderPost(p) {
+    const card = document.createElement("div");
+    card.className = "post";
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const who = document.createElement("b");
+    who.textContent = p.metadata?.author || "Anonymous";
+    const when = new Date(p.created_at);
+    meta.append(who, " · ", isNaN(when) ? "" : when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }));
+    const msg = document.createElement("p");
+    msg.className = "msg";
+    msg.textContent = p.metadata?.message || "";
+    card.append(meta, msg);
+    return card;
+  }
+
+  let lastRendered = "";
+  async function loadPosts() {
+    try {
+      const { objects } = await cosmic.objects
+        .find({ type: FORUM_TYPE })
+        .props("id,created_at,metadata")
+        .sort("-created_at")
+        .limit(50);
+      const posts = objects || [];
+      const sig = posts.map(p => p.id).join(",");
+      if (sig === lastRendered) return;
+      lastRendered = sig;
+      forumPosts.replaceChildren(...posts.map(renderPost));
+      if (!posts.length) forumStatus.textContent = "No posts yet. Be the first!";
+      else forumStatus.textContent = "";
+    } catch (err) {
+      if (err?.status === 404) {
+        forumStatus.textContent = "No posts yet. Be the first!";
+      } else {
+        forumStatus.textContent = "Couldn't load posts.";
+        console.error(err);
+      }
+    }
+  }
+
+  forumForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (document.getElementById("f-website").value) return; // honeypot
+    const author = nameInput.value.trim().slice(0, 30);
+    const message = msgInput.value.trim().slice(0, 500);
+    if (!author || !message) return;
+    if (Date.now() - lastPostAt < 10000) {
+      forumStatus.textContent = "Slow down a little. Try again in a few seconds.";
+      return;
+    }
+    sendBtn.disabled = true;
+    try {
+      const res = await fetch(FORUM_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author, message, website: document.getElementById("f-website").value })
+      });
+      if (res.status === 429) {
+        forumStatus.textContent = "Slow down a little. Try again in a few seconds.";
+        return;
+      }
+      if (!res.ok) throw new Error("Post failed: " + res.status);
+      lastPostAt = Date.now();
+      try { localStorage.setItem("forum-name", author); } catch {}
+      msgInput.value = "";
+      forumStatus.textContent = "";
+      await loadPosts();
+    } catch (err) {
+      forumStatus.textContent = "Couldn't post your message. Please try again.";
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  loadPosts();
+  setInterval(() => { if (!document.hidden && !pageHome.hidden) loadPosts(); }, 15000);
+
   // Simple hash router: #/ = Home, #/videos = Videos, #/about = About
   const pages = {
     "#/videos": document.getElementById("videos"),
@@ -182,4 +308,4 @@
   route();
   </script>
 </body>
-</html>
+</html
