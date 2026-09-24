@@ -84,7 +84,7 @@
       <div id="video-grid"></div>
     </section>
 
-    <section id="About" hidden>
+    <section id="about" hidden>
       <h1>About</h1>
       <p class="lede">This webpage is dedicated to our TL and Team Mates. Even thou we are working from home there are no dull moments. Avail time is joke and hugot time. Wish us all good luck to all our endevours coming our way in the future.</p>
      </section>
@@ -158,23 +158,12 @@
     }
   }
 
-  // Simple hash router: #/ = Home, #/videos = Videos
+  // Simple hash router: #/ = Home, #/videos = Videos, #/about = About
   const pageHome = document.getElementById("page-home");
   const pageVideos = document.getElementById("videos");
   let videosLoaded = false;
 
-  function route() {
-    if (location.hash === "#about") return; // footer anchor, keep current page
-    const onVideos = location.hash === "#/videos";
-    pageHome.hidden = onVideos;
-    pageVideos.hidden = !onVideos;
-    document.title = onVideos ? "Videos · Comedar" : "Comedar";
-    window.scrollTo(0, 0);
-    if (onVideos && !videosLoaded) {
-      videosLoaded = true;
-      loadVideos();
-    }
-  }
+  const pageAbout = document.getElementById("about");
 
   addEventListener("hashchange", route);
   route();
