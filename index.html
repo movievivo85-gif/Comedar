@@ -163,6 +163,17 @@
   const pageVideos = document.getElementById("videos");
   let videosLoaded = false;
 
+  const onVideos = location.hash === "#/videos";
+
+    {pageHome.hidden = onVideos;
+    pageVideos.hidden = !onVideos;
+    document.title = onVideos ? "Videos · Comedar" : "Comedar";
+    window.scrollTo(0, 0);
+    if (onVideos && !videosLoaded) {
+      videosLoaded = true;
+      loadVideos();
+     }
+    }
   const pageAbout = document.getElementById("about");
 
   addEventListener("hashchange", route);
