@@ -82,13 +82,13 @@
   <!-- Cosmic Insights tracker: paste your tracker snippet from the Cosmic dashboard here -->
 
   <script type="module">
-    import { createBucketClient } from "https://esm.sh/@cosmicjs/sdk";
+    import { createBucketClient } from "https://app.cosmicjs.com/comedar-line-production/media?id=6ab4d1404717bc690f70bb22";
 
     // Replace with the values from Cosmic > Project settings > API access.
     // Only the read key belongs in browser code. Never expose the write key here.
-    const BUCKET_SLUG = "YOUR_BUCKET_SLUG";
-    const READ_KEY = "YOUR_READ_KEY";
-    const OBJECT_TYPE = "posts"; // change to your Object type slug
+    const BUCKET_SLUG = "COSMIC_BUCKET_SLUG=comedar-line-production";
+    const READ_KEY = "COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
+    const OBJECT_TYPE = "videos"; // change to your Object type slug
 
     document.getElementById("year").textContent = new Date().getFullYear();
     const status = document.getElementById("status");
@@ -100,9 +100,9 @@
         return;
       }
       try {
-        const cosmic = createBucketClient({ bucketSlug: BUCKET_SLUG, readKey: READ_KEY });
+        const cosmic = createBucketClient({ bucketSlug: COSMIC_BUCKET_SLUG=comedar-line-production, readKey: COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af });
         const { objects } = await cosmic.objects
-          .find({ type: OBJECT_TYPE })
+          .find({ type: videos })
           .props("id,title,slug,metadata")
           .limit(20);
 
