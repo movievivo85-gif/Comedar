@@ -101,7 +101,7 @@
 
       const { objects } = await cosmic.objects
         .find({ type: OBJECT_TYPE })
-        .props("id,title,slug,metadata")
+        .props("6ab4d1404717bc690f70bb22,title,slug,metadata")
         .limit(20);
 
       if (!objects.length) {
