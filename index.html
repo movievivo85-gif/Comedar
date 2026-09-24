@@ -88,7 +88,10 @@
     // Only the read key belongs in browser code. Never expose the write key here.
     const BUCKET_SLUG = "COSMIC_BUCKET_SLUG=comedar-line-production";
     const READ_KEY = "COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
-    const OBJECT_TYPE = "posts"; // change to your Object type slug
+    const { objects } = await cosmic.objects
+    .find({ type: 'YOUR_OBJECT_TYPE_SLUG' })
+    .props('id,slug,title,metadata');
+
 
     document.getElementById("year").textContent = new Date().getFullYear();
     const status = document.getElementById("status");
