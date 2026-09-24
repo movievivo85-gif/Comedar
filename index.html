@@ -89,7 +89,7 @@
     const BUCKET_SLUG = "COSMIC_BUCKET_SLUG=comedar-line-production";
     const READ_KEY = "COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
     cosmic.objects.find({ type: 'videos' })
-    document.getElementById('hero').src = `${media.imgix_url}?w=800&auto=format`;
+    document.getElementById('videos').src = `${media.imgix_url}?w=800&auto=format`;
   } catch (err) {
     console.error('Cosmic media error:', err);
   }
