@@ -100,9 +100,9 @@
         return;
       }
       try {
-        const cosmic = createBucketClient({ bucketSlug: BUCKET_SLUG, readKey: READ_KEY });
+        const cosmic = createBucketClient({ bucketSlug: COSMIC_BUCKET_SLUG=comedar-line-production, readKey: COSMIC_READ_KEY=WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af });
         const { objects } = await cosmic.objects
-          .find({ type: OBJECT_TYPE })
+          .find({ type: Videos })
           .props("id,title,slug,metadata")
           .limit(20);
 
