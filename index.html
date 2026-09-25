@@ -51,38 +51,9 @@
     #video-status { color: var(--muted); }
 
     #video-grid { display: grid; gap: 1rem; margin-top: 1.5rem; }
-    .video-card {
-      background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
-      display: grid; grid-template-columns: 1fr; grid-template-areas: "media" "comments";
-    }
-    @media (min-width: 640px) {
-      .video-card { grid-template-columns: 1.4fr 1fr; grid-template-areas: "media comments"; }
-    }
-    .video-card video { display: block; width: 100%; height: auto; background: #000; grid-area: media; }
-    .video-card .media-col { grid-area: media; display: flex; flex-direction: column; }
+    .video-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .video-card video { display: block; width: 100%; height: auto; background: #000; }
     .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
-
-    .comment-col {
-      grid-area: comments; border-top: 1px solid var(--line);
-      display: flex; flex-direction: column; min-height: 0; padding: 0.75rem 0.9rem;
-    }
-    @media (min-width: 640px) {
-      .comment-col { border-top: none; border-left: 1px solid var(--line); }
-    }
-    .comment-col h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.5rem; }
-    .comment-list { list-style: none; margin: 0 0 0.6rem; padding: 0; max-height: 10rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
-    .comment-list li { font-size: 0.85rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.6rem; word-break: break-word; }
-    .comment-list .empty { color: var(--muted); font-style: italic; border: none; background: none; padding: 0; }
-    .comment-form { display: flex; gap: 0.4rem; margin-top: auto; }
-    .comment-form textarea {
-      flex: 1; resize: vertical; min-height: 2.2rem; max-height: 6rem; font: inherit; color: var(--ink);
-      background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.5rem;
-    }
-    .comment-form button {
-      font: inherit; font-weight: 600; color: #fff; background: var(--brand); border: none;
-      border-radius: 6px; padding: 0 0.9rem; cursor: pointer;
-    }
-    .comment-form button:hover, .comment-form button:focus-visible { opacity: 0.9; }
 
     footer { padding: 3rem 0 2rem; color: var(--muted); font-size: 0.9rem; }
     @media (prefers-reduced-motion: no-preference) {
@@ -146,52 +117,9 @@
     return (m.type || "").startsWith("video/") || VIDEO_EXT.test(m.url || "");
   }
 
-  const COMMENTS_KEY = "comedar-comments";
-
-  function loadAllComments() {
-    try {
-      return JSON.parse(localStorage.getItem(COMMENTS_KEY)) || {};
-    } catch {
-      return {};
-    }
-  }
-
-  function saveComment(videoId, text) {
-    const all = loadAllComments();
-    if (!all[videoId]) all[videoId] = [];
-    all[videoId].push({ text, at: Date.now() });
-    try {
-      localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
-    } catch (err) {
-      console.error("Couldn't save comment", err);
-    }
-  }
-
-  function renderCommentList(listEl, videoId) {
-    const comments = loadAllComments()[videoId] || [];
-    listEl.innerHTML = "";
-    if (!comments.length) {
-      const li = document.createElement("li");
-      li.className = "empty";
-      li.textContent = "No messages yet — be the first!";
-      listEl.append(li);
-      return;
-    }
-    for (const c of comments) {
-      const li = document.createElement("li");
-      li.textContent = c.text;
-      listEl.append(li);
-    }
-    listEl.scrollTop = listEl.scrollHeight;
-  }
-
   function renderVideo(m) {
     const card = document.createElement("div");
     card.className = "video-card";
-    const videoId = m.id || m.name;
-
-    const mediaCol = document.createElement("div");
-    mediaCol.className = "media-col";
 
     const el = document.createElement("video");
     el.controls = true;
@@ -203,43 +131,7 @@
     cap.className = "caption";
     cap.textContent = m.original_name || m.name;
 
-    mediaCol.append(el, cap);
-
-    const commentCol = document.createElement("div");
-    commentCol.className = "comment-col";
-
-    const heading = document.createElement("h3");
-    heading.textContent = "Messages";
-
-    const list = document.createElement("ul");
-    list.className = "comment-list";
-
-    const form = document.createElement("form");
-    form.className = "comment-form";
-    form.setAttribute("aria-label", "Leave a message about this video");
-
-    const textarea = document.createElement("textarea");
-    textarea.placeholder = "Leave a message…";
-    textarea.required = true;
-
-    const button = document.createElement("button");
-    button.type = "submit";
-    button.textContent = "Post";
-
-    form.append(textarea, button);
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const text = textarea.value.trim();
-      if (!text) return;
-      saveComment(videoId, text);
-      textarea.value = "";
-      renderCommentList(list, videoId);
-    });
-
-    commentCol.append(heading, list, form);
-    renderCommentList(list, videoId);
-
-    card.append(mediaCol, commentCol);
+    card.append(el, cap);
     return card;
   }
 
