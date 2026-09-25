@@ -1,0 +1,96 @@
+// api/forum-post.js
+
+export default async function handler(req, res) {
+  // Allow POST only
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      success: false,
+      error: "Method not allowed",
+    });
+  }
+
+  try {
+    const { name, message } = req.body || {};
+
+    // Validate input
+    if (
+      typeof name !== "string" ||
+      typeof message !== "string" ||
+      !name.trim() ||
+      !message.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Name and message are required.",
+      });
+    }
+
+    const bucketSlug = process.env.COSMIC_BUCKET_SLUG;
+    const writeKey = process.env.COSMIC_WRITE_KEY;
+
+    // Check environment variables
+    if (!bucketSlug || !writeKey) {
+      console.error("Missing Cosmic environment variables.");
+
+      return res.status(500).json({
+        success: false,
+        error: "Server configuration error.",
+      });
+    }
+
+    // Clean input
+    const cleanName = name.trim().slice(0, 100);
+    const cleanMessage = message.trim().slice(0, 5000);
+
+    // Send object to Cosmic
+    const cosmicResponse = await fetch(
+      "https://api.cosmicjs.com/v3/objects",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${writeKey}`,
+        },
+        body: JSON.stringify({
+          bucket_slug: bucketSlug,
+          type: "messages",
+          title: cleanName,
+          status: "published",
+          metadata: {
+            name: cleanName,
+            message: cleanMessage,
+          },
+        }),
+      }
+    );
+
+    const cosmicData = await cosmicResponse.json();
+
+    // Handle Cosmic API errors
+    if (!cosmicResponse.ok) {
+      console.error("Cosmic API error:", cosmicData);
+
+      return res.status(cosmicResponse.status).json({
+        success: false,
+        error:
+          cosmicData?.message ||
+          cosmicData?.error ||
+          "Cosmic API request failed.",
+      });
+    }
+
+    // Success
+    return res.status(201).json({
+      success: true,
+      message: "Forum post created successfully.",
+      object: cosmicData.object || cosmicData,
+    });
+  } catch (error) {
+    console.error("forum-post error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error.",
+    });
+  }
+}
