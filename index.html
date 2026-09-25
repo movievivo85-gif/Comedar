@@ -60,7 +60,7 @@
     #board { margin-top: 1.5rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem 1.2rem; }
     #board h2 { font-size: 1rem; margin: 0 0 0.8rem; color: var(--ink); }
     #board-form { display: flex; flex-direction: column; gap: 0.6rem; }
-    #board-name { padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+    #board-name, #board-email { padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
     #board-text { padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; resize: vertical; min-height: 4.5em; }
     #board-form button { align-self: flex-start; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--brand); color: #fff; font: inherit; cursor: pointer; }
     #board-form button:hover { opacity: 0.9; }
@@ -92,8 +92,7 @@
   <main id="content">
     <section id="page-home">
       <h1>Welcome to VTO Files</h1>
-      <p class="lede">Consider this as your FREEDOM WALL say what ever makes you happy!!! 
-~waltz~ </p>
+      <p class="lede">No dull moments.</p>
     </section>
 
     <section id="videos" hidden>
@@ -114,7 +113,8 @@
     <div id="board">
       <h2>Leave a message</h2>
       <form id="board-form">
-        <input id="board-name" type="text" maxlength="40" placeholder="Your name (optional)" autocomplete="off">
+        <input id="board-name" type="text" maxlength="40" placeholder="Your name" autocomplete="name" required>
+        <input id="board-email" type="email" maxlength="100" placeholder="Your email" autocomplete="email" required>
         <textarea id="board-text" maxlength="500" placeholder="Say something…" required></textarea>
         <button type="submit">Post</button>
         <p id="board-status" role="status"></p>
@@ -192,6 +192,7 @@
   // Message board
   const boardForm = document.getElementById("board-form");
   const boardName = document.getElementById("board-name");
+  const boardEmail = document.getElementById("board-email");
   const boardText = document.getElementById("board-text");
   const boardStatus = document.getElementById("board-status");
   const boardList = document.getElementById("board-list");
@@ -226,7 +227,7 @@
     try {
       const { objects } = await cosmic.objects
         .find({ type: "messages" })
-        .props("id,metadata,created_at")
+        .props("id,metadata.name,metadata.message,created_at")
         .sort("-created_at")
         .limit(100);
 
@@ -256,16 +257,26 @@
   boardForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const message = boardText.value.trim();
+    const name = boardName.value.trim();
+    const email = boardEmail.value.trim();
+
+    if (!name || !email) {
+      boardStatus.textContent = "Name and email are required to post.";
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      boardStatus.textContent = "Please enter a valid email address.";
+      return;
+    }
     if (!message) return;
 
-    const name = boardName.value.trim();
     boardStatus.textContent = "Posting…";
 
     try {
       await cosmic.objects.insertOne({
         type: "messages",
-        title: name ? `${name}: ${message.slice(0, 40)}` : message.slice(0, 40),
-        metadata: { name, message }
+        title: `${name}: ${message.slice(0, 40)}`,
+        metadata: { name, email, message }
       });
       boardText.value = "";
       boardStatus.textContent = "";
