@@ -68,7 +68,7 @@
     <nav aria-label="Main">
       <a href="#/">Home</a>
       <a href="#/videos">Videos</a>
-      <a href="#/about">About</a>
+      <a href="#about">About</a>
     </nav>
   </header>
 
@@ -83,14 +83,9 @@
       <p id="video-status" role="status">Loading videos…</p>
       <div id="video-grid"></div>
     </section>
-
-    <section id="page-about" hidden>
-      <h1>About</h1>
-      <p class="lede">This webpage is dedicated to our TL and Team Mates. Even thou we are working from home there are no dull moments. Avail time is joke and hugot time. Wish us all good luck to all our endevours coming our way in the future.</p>
-    </section>
   </main>
 
-  <footer>
+  <footer id="about">
     <p>&copy; <span id="year"></span> Comedar</p>
   </footer>
 
@@ -157,22 +152,19 @@
     }
   }
 
-  // Simple hash router: #/ = Home, #/videos = Videos, #/about = About
-  const pages = {
-    "#/videos": document.getElementById("videos"),
-    "#/about": document.getElementById("page-about")
-  };
+  // Simple hash router: #/ = Home, #/videos = Videos
   const pageHome = document.getElementById("page-home");
-  const titles = { "#/videos": "Videos · Comedar", "#/about": "About · Comedar" };
+  const pageVideos = document.getElementById("videos");
   let videosLoaded = false;
 
   function route() {
-    const key = pages[location.hash] ? location.hash : "";
-    pageHome.hidden = key !== "";
-    for (const [k, el] of Object.entries(pages)) el.hidden = k !== key;
-    document.title = titles[key] || "Comedar";
+    if (location.hash === "#about") return; // footer anchor, keep current page
+    const onVideos = location.hash === "#/videos";
+    pageHome.hidden = onVideos;
+    pageVideos.hidden = !onVideos;
+    document.title = onVideos ? "Videos · Comedar" : "Comedar";
     window.scrollTo(0, 0);
-    if (key === "#/videos" && !videosLoaded) {
+    if (onVideos && !videosLoaded) {
       videosLoaded = true;
       loadVideos();
     }
