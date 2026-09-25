@@ -63,6 +63,7 @@
     .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
 
     .comment-col {
+      grid-area: comments; border-top: 1px solid var(--line);
       display: flex; flex-direction: column; min-height: 0; padding: 0.75rem 0.9rem;
     }
     @media (min-width: 640px) {
@@ -110,6 +111,10 @@
       <h1>Videos</h1>
       <p id="video-status" role="status">Loading videos…</p>
       <div id="video-grid"></div>
+    </section>
+
+    <section id="page-about" hidden>
+      <h1>About</h1>
       <p class="lede">This webpage is dedicated to our TL and Team Mates. Even thou we are working from home there are no dull moments. Avail time is joke and hugot time. Wish us all good luck to all our endevours coming our way in the future.</p>
     </section>
   </main>
