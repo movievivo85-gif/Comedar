@@ -56,6 +56,23 @@
     .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
 
     footer { padding: 3rem 0 2rem; color: var(--muted); font-size: 0.9rem; }
+
+    #board { margin-top: 1.5rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem 1.2rem; }
+    #board h2 { font-size: 1rem; margin: 0 0 0.8rem; color: var(--ink); }
+    #board-form { display: flex; flex-direction: column; gap: 0.6rem; }
+    #board-name { padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+    #board-text { padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; resize: vertical; min-height: 4.5em; }
+    #board-form button { align-self: flex-start; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--brand); color: #fff; font: inherit; cursor: pointer; }
+    #board-form button:hover { opacity: 0.9; }
+    #board-status { font-size: 0.85rem; min-height: 1.2em; }
+    #board-list { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+    #board-list li { border-top: 1px solid var(--line); padding-top: 0.6rem; display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
+    .board-msg { flex: 1; min-width: 0; }
+    .board-msg .who { font-weight: 600; color: var(--ink); font-size: 0.85rem; }
+    .board-msg .when { color: var(--muted); font-size: 0.75rem; margin-left: 0.4em; }
+    .board-msg p { margin: 0.2rem 0 0; word-break: break-word; }
+    .board-del { flex: none; background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 0.75rem; padding: 0.25rem 0.55rem; cursor: pointer; }
+    .board-del:hover { border-color: var(--accent); color: var(--ink); }
     @media (prefers-reduced-motion: no-preference) {
       .video-card { animation: in 0.3s ease-out both; }
       @keyframes in { from { opacity: 0; } to { opacity: 1; } }
@@ -92,6 +109,17 @@
 
   <footer>
     <p>&copy; <span id="year"></span> Comedar</p>
+
+    <div id="board">
+      <h2>Leave a message</h2>
+      <form id="board-form">
+        <input id="board-name" type="text" maxlength="40" placeholder="Your name (optional)" autocomplete="off">
+        <textarea id="board-text" maxlength="500" placeholder="Say something…" required></textarea>
+        <button type="submit">Post</button>
+        <p id="board-status" role="status"></p>
+      </form>
+      <ul id="board-list"></ul>
+    </div>
   </footer>
 
   <!-- Cosmic Insights tracker: paste your tracker snippet from the Cosmic dashboard here -->
@@ -101,6 +129,8 @@
 
   const BUCKET_SLUG = "comedar-line-production";
   const READ_KEY = "WuQoglIeDeC0aRZcnhl3lQwTvDRiv5fARDtgeswV5zDbkG75Af";
+  const WRITE_KEY = "yIlqtxz0Szx5DMYblx0V1QTz57oSw6to6OaAJKg7WKyNckrqKR";
+  const DELETE_PASSWORD = "M!c0";
 
   document.getElementById("year").textContent = new Date().getFullYear();
   const videoStatus = document.getElementById("video-status");
@@ -108,7 +138,8 @@
 
   const cosmic = createBucketClient({
     bucketSlug: BUCKET_SLUG,
-    readKey: READ_KEY
+    readKey: READ_KEY,
+    writeKey: WRITE_KEY
   });
 
   const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i;
@@ -156,6 +187,95 @@
       console.error(err);
     }
   }
+
+  // Message board
+  const boardForm = document.getElementById("board-form");
+  const boardName = document.getElementById("board-name");
+  const boardText = document.getElementById("board-text");
+  const boardStatus = document.getElementById("board-status");
+  const boardList = document.getElementById("board-list");
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  function renderMessage(obj) {
+    const li = document.createElement("li");
+
+    const wrap = document.createElement("div");
+    wrap.className = "board-msg";
+    const who = escapeHtml(obj.metadata?.name?.trim() || "Anonymous");
+    const when = new Date(obj.created_at || Date.now()).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    wrap.innerHTML = `<span class="who">${who}</span><span class="when">${when}</span><p></p>`;
+    wrap.querySelector("p").textContent = obj.metadata?.message || "";
+
+    const del = document.createElement("button");
+    del.className = "board-del";
+    del.type = "button";
+    del.textContent = "Delete";
+    del.addEventListener("click", () => deleteMessage(obj.id, li));
+
+    li.append(wrap, del);
+    return li;
+  }
+
+  async function loadMessages() {
+    try {
+      const { objects } = await cosmic.objects
+        .find({ type: "messages" })
+        .props("id,metadata,created_at")
+        .sort("-created_at")
+        .limit(100);
+
+      boardList.innerHTML = "";
+      for (const obj of objects || []) boardList.append(renderMessage(obj));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function deleteMessage(id, li) {
+    const pw = prompt("Enter password to delete this message:");
+    if (pw === null) return;
+    if (pw !== DELETE_PASSWORD) {
+      alert("Wrong password.");
+      return;
+    }
+    try {
+      await cosmic.objects.deleteOne(id);
+      li.remove();
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't delete that message. Try again.");
+    }
+  }
+
+  boardForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const message = boardText.value.trim();
+    if (!message) return;
+
+    const name = boardName.value.trim();
+    boardStatus.textContent = "Posting…";
+
+    try {
+      await cosmic.objects.insertOne({
+        type: "messages",
+        title: name ? `${name}: ${message.slice(0, 40)}` : message.slice(0, 40),
+        metadata: { name, message }
+      });
+      boardText.value = "";
+      boardStatus.textContent = "";
+      loadMessages();
+    } catch (err) {
+      console.error(err);
+      boardStatus.textContent = "Couldn't post. Check the console for details.";
+    }
+  });
+
+  loadMessages();
 
   // Simple hash router: #/ = Home, #/videos = Videos, #/about = About
   const pages = {
