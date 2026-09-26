@@ -1,0 +1,23 @@
+{
+  "name": "comedar",
+  "version": "1.0.0",
+  "description": "VTO Files - A Comedar project with video sharing and message board",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/movievivo85-gif/Comedar.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/movievivo85-gif/Comedar/issues"
+  },
+  "homepage": "https://github.com/movievivo85-gif/Comedar#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
