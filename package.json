@@ -21,3 +21,6 @@
     "@vercel/analytics": "^2.0.1"
   }
 }
+"dependencies": {
+  "next": "latest"
+}
