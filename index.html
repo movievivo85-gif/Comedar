@@ -64,6 +64,7 @@
     }
     .video-actions button:hover, .video-actions button:focus-visible { border-color: var(--accent); color: var(--ink); }
     .video-actions svg { width: 1.1em; height: 1.1em; flex: none; }
+    .video-actions .count { min-width: 1ch; text-align: left; }
     .like-btn.is-liked { color: var(--accent); border-color: var(--accent); }
     .share-btn .label.copied { color: var(--brand); }
 
@@ -172,7 +173,50 @@
       <line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/>
     </svg>`;
 
-  function renderVideo(m) {
+  // Shared like/share counters, stored in Cosmic as one "video-stats" object per video (slug = media id).
+  const STATS_TYPE = "video-stats";
+
+  async function loadStatsMap() {
+    const map = {};
+    try {
+      const { objects } = await cosmic.objects
+        .find({ type: STATS_TYPE })
+        .props("id,slug,metadata.likes,metadata.shares")
+        .limit(100);
+      for (const o of objects || []) {
+        map[o.slug] = {
+          id: o.id,
+          likes: Number(o.metadata?.likes) || 0,
+          shares: Number(o.metadata?.shares) || 0
+        };
+      }
+    } catch (err) {
+      console.error("Couldn't load video stats:", err);
+    }
+    return map;
+  }
+
+  async function saveStat(mediaId, mediaTitle, stat) {
+    try {
+      if (stat.id) {
+        await cosmic.objects.updateOne(stat.id, {
+          metadata: { likes: stat.likes, shares: stat.shares }
+        });
+      } else {
+        const { object } = await cosmic.objects.insertOne({
+          type: STATS_TYPE,
+          title: mediaTitle || mediaId,
+          slug: mediaId,
+          metadata: { likes: stat.likes, shares: stat.shares }
+        });
+        stat.id = object.id;
+      }
+    } catch (err) {
+      console.error("Couldn't save video stat:", err);
+    }
+  }
+
+  function renderVideo(m, statsMap) {
     const card = document.createElement("div");
     card.className = "video-card";
 
@@ -189,8 +233,11 @@
     const actions = document.createElement("div");
     actions.className = "video-actions";
 
-    // Like button (toggle state remembered on this device)
-    const likeKey = "comedar_liked_" + (m.id || m.name);
+    const mediaTitle = m.original_name || m.name;
+    const stat = statsMap[m.id] || { id: null, likes: 0, shares: 0 };
+
+    // Like button: shared count in Cosmic, this device's "liked" state in local storage
+    const likeKey = "comedar_liked_" + m.id;
     let liked = false;
     try { liked = localStorage.getItem(likeKey) === "1"; } catch (e) {}
 
@@ -198,50 +245,65 @@
     likeBtn.type = "button";
     likeBtn.className = "like-btn" + (liked ? " is-liked" : "");
     likeBtn.setAttribute("aria-pressed", String(liked));
-    likeBtn.innerHTML = `${LIKE_ICON(liked)}<span class="label">${liked ? "Liked" : "Like"}</span>`;
+    likeBtn.innerHTML = `${LIKE_ICON(liked)}<span class="label">${liked ? "Liked" : "Like"}</span><span class="count">${stat.likes}</span>`;
 
-    likeBtn.addEventListener("click", () => {
+    likeBtn.addEventListener("click", async () => {
       const nowLiked = likeBtn.getAttribute("aria-pressed") !== "true";
       likeBtn.setAttribute("aria-pressed", String(nowLiked));
       likeBtn.classList.toggle("is-liked", nowLiked);
-      likeBtn.innerHTML = `${LIKE_ICON(nowLiked)}<span class="label">${nowLiked ? "Liked" : "Like"}</span>`;
+      stat.likes = Math.max(0, stat.likes + (nowLiked ? 1 : -1));
+      likeBtn.innerHTML = `${LIKE_ICON(nowLiked)}<span class="label">${nowLiked ? "Liked" : "Like"}</span><span class="count">${stat.likes}</span>`;
       try {
         if (nowLiked) localStorage.setItem(likeKey, "1");
         else localStorage.removeItem(likeKey);
       } catch (e) {}
+      saveStat(m.id, mediaTitle, stat);
     });
 
-    // Share button (native share sheet, falls back to copy link)
+    // Share button: native share sheet, falls back to copy link; bumps a shared counter
     const shareBtn = document.createElement("button");
     shareBtn.type = "button";
     shareBtn.className = "share-btn";
-    shareBtn.innerHTML = `${SHARE_ICON}<span class="label">Share</span>`;
+    shareBtn.innerHTML = `${SHARE_ICON}<span class="label">Share</span><span class="count">${stat.shares}</span>`;
 
     shareBtn.addEventListener("click", async () => {
-      const shareData = { title: m.original_name || m.name, url: m.url };
+      const shareData = { title: mediaTitle, url: m.url };
+      let shared = false;
+
       if (navigator.share) {
         try {
           await navigator.share(shareData);
-          return;
+          shared = true;
         } catch (e) {
           // user cancelled or share failed — fall through to copy
         }
       }
+
       const label = shareBtn.querySelector(".label");
+      const countEl = shareBtn.querySelector(".count");
       const prevText = label.textContent;
-      try {
-        await navigator.clipboard.writeText(m.url);
-        label.textContent = "Copied!";
-        label.classList.add("copied");
-      } catch (e) {
-        window.prompt("Copy this link:", m.url);
-        label.textContent = prevText;
-        return;
+
+      if (!shared) {
+        try {
+          await navigator.clipboard.writeText(m.url);
+          shared = true;
+          label.textContent = "Copied!";
+          label.classList.add("copied");
+          setTimeout(() => {
+            label.textContent = prevText;
+            label.classList.remove("copied");
+          }, 1500);
+        } catch (e) {
+          window.prompt("Copy this link:", m.url);
+          return; // don't count a failed/manual copy as a share
+        }
       }
-      setTimeout(() => {
-        label.textContent = prevText;
-        label.classList.remove("copied");
-      }, 1500);
+
+      if (shared) {
+        stat.shares += 1;
+        countEl.textContent = stat.shares;
+        saveStat(m.id, mediaTitle, stat);
+      }
     });
 
     actions.append(likeBtn, shareBtn);
@@ -263,8 +325,10 @@
         return;
       }
 
+      const statsMap = await loadStatsMap();
+
       videoStatus.hidden = true;
-      for (const v of videos) videoGrid.append(renderVideo(v));
+      for (const v of videos) videoGrid.append(renderVideo(v, statsMap));
     } catch (err) {
       videoStatus.textContent = "Couldn't load videos. Check that your read key has access to media.";
       console.error(err);
