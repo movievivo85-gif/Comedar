@@ -90,6 +90,8 @@
       .video-card { animation: in 0.3s ease-out both; }
       @keyframes in { from { opacity: 0; } to { opacity: 1; } }
     }
+    .video-card.video-highlight { outline: 3px solid var(--accent); outline-offset: 3px; transition: outline-color 1.6s ease 0.4s; }
+    .video-card.video-highlight.fade-highlight { outline-color: transparent; }
   </style>
 </head>
 <body>
@@ -219,6 +221,7 @@
   function renderVideo(m, statsMap) {
     const card = document.createElement("div");
     card.className = "video-card";
+    card.id = "video-" + m.id;
 
     const el = document.createElement("video");
     el.controls = true;
@@ -267,7 +270,8 @@
     shareBtn.innerHTML = `${SHARE_ICON}<span class="label">Share</span><span class="count">${stat.shares}</span>`;
 
     shareBtn.addEventListener("click", async () => {
-      const shareData = { title: mediaTitle, url: m.url };
+      const shareUrl = `${location.origin}${location.pathname}#/videos/${encodeURIComponent(m.id)}`;
+      const shareData = { title: mediaTitle, url: shareUrl };
       let shared = false;
 
       if (navigator.share) {
@@ -285,7 +289,7 @@
 
       if (!shared) {
         try {
-          await navigator.clipboard.writeText(m.url);
+          await navigator.clipboard.writeText(shareUrl);
           shared = true;
           label.textContent = "Copied!";
           label.classList.add("copied");
@@ -294,7 +298,7 @@
             label.classList.remove("copied");
           }, 1500);
         } catch (e) {
-          window.prompt("Copy this link:", m.url);
+          window.prompt("Copy this link:", shareUrl);
           return; // don't count a failed/manual copy as a share
         }
       }
@@ -435,26 +439,58 @@
 
   loadMessages();
 
-  // Simple hash router: #/ = Home, #/videos = Videos, #/about = About
-  const pages = {
-    "#/videos": document.getElementById("videos"),
-    "#/about": document.getElementById("page-about")
-  };
-  const pageHome = document.getElementById("page-home");
+  // Hash router: #/ = Home, #/videos or #/videos/<id> = Videos (optionally deep-linked to one video), #/about = About
+  const VIDEOS_ROUTE = "#/videos";
+  const sectionHome = document.getElementById("page-home");
+  const sectionVideos = document.getElementById("videos");
+  const sectionAbout = document.getElementById("page-about");
   const board = document.getElementById("board");
-  const titles = { "#/videos": "Videos · Comedar", "#/about": "About · Comedar" };
+  const titles = { videos: "Videos · Comedar", about: "About · Comedar", home: "Comedar" };
   let videosLoaded = false;
+  let videosLoadPromise = null;
+
+  function parseHash() {
+    const h = location.hash || "";
+    if (h === "#/about") return { page: "about", videoId: null };
+    if (h === VIDEOS_ROUTE || h.startsWith(VIDEOS_ROUTE + "/")) {
+      const rest = h.slice(VIDEOS_ROUTE.length);
+      const videoId = rest.startsWith("/") ? decodeURIComponent(rest.slice(1)) : null;
+      return { page: "videos", videoId };
+    }
+    return { page: "home", videoId: null };
+  }
+
+  function scrollToVideo(id) {
+    const el = document.getElementById("video-" + id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("video-highlight");
+    requestAnimationFrame(() => {
+      setTimeout(() => el.classList.add("fade-highlight"), 1200);
+      setTimeout(() => el.classList.remove("video-highlight", "fade-highlight"), 2800);
+    });
+  }
 
   function route() {
-    const key = pages[location.hash] ? location.hash : "";
-    pageHome.hidden = key !== "";
-    board.hidden = key !== "";
-    for (const [k, el] of Object.entries(pages)) el.hidden = k !== key;
-    document.title = titles[key] || "Comedar";
-    window.scrollTo(0, 0);
-    if (key === "#/videos" && !videosLoaded) {
-      videosLoaded = true;
-      loadVideos();
+    const { page, videoId } = parseHash();
+    sectionHome.hidden = page !== "home";
+    sectionVideos.hidden = page !== "videos";
+    sectionAbout.hidden = page !== "about";
+    board.hidden = page !== "home";
+    document.title = titles[page] || "Comedar";
+
+    if (page === "videos") {
+      if (!videosLoaded) {
+        videosLoaded = true;
+        videosLoadPromise = loadVideos();
+      }
+      if (videoId) {
+        (videosLoadPromise || Promise.resolve()).then(() => scrollToVideo(videoId));
+      } else {
+        window.scrollTo(0, 0);
+      }
+    } else {
+      window.scrollTo(0, 0);
     }
   }
 
