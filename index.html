@@ -184,6 +184,7 @@
       const { objects } = await cosmic.objects
         .find({ type: STATS_TYPE })
         .props("id,slug,metadata.likes,metadata.shares")
+        .status("any")
         .limit(100);
       for (const o of objects || []) {
         map[o.slug] = {
@@ -202,6 +203,7 @@
     try {
       if (stat.id) {
         await cosmic.objects.updateOne(stat.id, {
+          status: "published",
           metadata: { likes: stat.likes, shares: stat.shares }
         });
       } else {
@@ -209,12 +211,13 @@
           type: STATS_TYPE,
           title: mediaTitle || mediaId,
           slug: mediaId,
+          status: "published",
           metadata: { likes: stat.likes, shares: stat.shares }
         });
         stat.id = object.id;
       }
     } catch (err) {
-      console.error("Couldn't save video stat:", err);
+      console.error(`Couldn't save video stat for "${mediaTitle}" (${STATS_TYPE} type may not exist yet in Cosmic):`, err);
     }
   }
 
