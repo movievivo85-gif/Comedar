@@ -55,6 +55,18 @@
     .video-card video { display: block; width: 100%; height: auto; background: #000; }
     .video-card .caption { padding: 0.6rem 0.9rem; font-size: 0.9rem; color: var(--muted); word-break: break-word; }
 
+    .video-actions { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.9rem 0.9rem; }
+    .video-actions button {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      background: none; border: 1px solid var(--line); border-radius: 999px;
+      padding: 0.35rem 0.75rem; font: inherit; font-size: 0.85rem;
+      color: var(--muted); cursor: pointer;
+    }
+    .video-actions button:hover, .video-actions button:focus-visible { border-color: var(--accent); color: var(--ink); }
+    .video-actions svg { width: 1.1em; height: 1.1em; flex: none; }
+    .like-btn.is-liked { color: var(--accent); border-color: var(--accent); }
+    .share-btn .label.copied { color: var(--brand); }
+
     footer { padding: 3rem 0 2rem; color: var(--muted); font-size: 0.9rem; }
 
     #board { margin-top: 1.5rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem 1.2rem; }
@@ -149,6 +161,17 @@
     return (m.type || "").startsWith("video/") || VIDEO_EXT.test(m.url || "");
   }
 
+  const LIKE_ICON = (filled) =>
+    `<svg viewBox="0 0 24 24" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <path d="M12 21s-6.7-4.35-9.3-8.1C1 10.2 1.6 6.6 4.6 5.1c2.2-1.1 4.6-.3 6 1.5l1.4 1.8 1.4-1.8c1.4-1.8 3.8-2.6 6-1.5 3 1.5 3.6 5.1 1.9 7.8C18.7 16.65 12 21 12 21z"/>
+    </svg>`;
+
+  const SHARE_ICON =
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+      <line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/>
+    </svg>`;
+
   function renderVideo(m) {
     const card = document.createElement("div");
     card.className = "video-card";
@@ -163,7 +186,66 @@
     cap.className = "caption";
     cap.textContent = m.original_name || m.name;
 
-    card.append(el, cap);
+    const actions = document.createElement("div");
+    actions.className = "video-actions";
+
+    // Like button (toggle state remembered on this device)
+    const likeKey = "comedar_liked_" + (m.id || m.name);
+    let liked = false;
+    try { liked = localStorage.getItem(likeKey) === "1"; } catch (e) {}
+
+    const likeBtn = document.createElement("button");
+    likeBtn.type = "button";
+    likeBtn.className = "like-btn" + (liked ? " is-liked" : "");
+    likeBtn.setAttribute("aria-pressed", String(liked));
+    likeBtn.innerHTML = `${LIKE_ICON(liked)}<span class="label">${liked ? "Liked" : "Like"}</span>`;
+
+    likeBtn.addEventListener("click", () => {
+      const nowLiked = likeBtn.getAttribute("aria-pressed") !== "true";
+      likeBtn.setAttribute("aria-pressed", String(nowLiked));
+      likeBtn.classList.toggle("is-liked", nowLiked);
+      likeBtn.innerHTML = `${LIKE_ICON(nowLiked)}<span class="label">${nowLiked ? "Liked" : "Like"}</span>`;
+      try {
+        if (nowLiked) localStorage.setItem(likeKey, "1");
+        else localStorage.removeItem(likeKey);
+      } catch (e) {}
+    });
+
+    // Share button (native share sheet, falls back to copy link)
+    const shareBtn = document.createElement("button");
+    shareBtn.type = "button";
+    shareBtn.className = "share-btn";
+    shareBtn.innerHTML = `${SHARE_ICON}<span class="label">Share</span>`;
+
+    shareBtn.addEventListener("click", async () => {
+      const shareData = { title: m.original_name || m.name, url: m.url };
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (e) {
+          // user cancelled or share failed — fall through to copy
+        }
+      }
+      const label = shareBtn.querySelector(".label");
+      const prevText = label.textContent;
+      try {
+        await navigator.clipboard.writeText(m.url);
+        label.textContent = "Copied!";
+        label.classList.add("copied");
+      } catch (e) {
+        window.prompt("Copy this link:", m.url);
+        label.textContent = prevText;
+        return;
+      }
+      setTimeout(() => {
+        label.textContent = prevText;
+        label.classList.remove("copied");
+      }, 1500);
+    });
+
+    actions.append(likeBtn, shareBtn);
+    card.append(el, cap, actions);
     return card;
   }
 
